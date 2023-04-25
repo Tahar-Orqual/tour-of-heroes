@@ -1,5 +1,5 @@
 import { bootstrapApplication } from "@angular/platform-browser";
-import { provideRouter } from "@angular/router";
+import { provideRouter, withComponentInputBinding } from "@angular/router";
 import { AppComponent } from "./app/app.component";
 import { APP_ROUTES } from "./app/core/routes/routes";
 import { HttpClientInMemoryWebApiModule } from "angular-in-memory-web-api";
@@ -9,7 +9,7 @@ import { HttpClientModule } from "@angular/common/http";
 
 bootstrapApplication(AppComponent, {
   providers: [
-    provideRouter(APP_ROUTES),
+    provideRouter(APP_ROUTES, withComponentInputBinding()),
     importProvidersFrom(
       HttpClientModule,
       HttpClientInMemoryWebApiModule.forRoot(InMemoryDataService, {

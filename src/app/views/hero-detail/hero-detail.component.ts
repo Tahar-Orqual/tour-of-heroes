@@ -4,24 +4,26 @@ import {
   OnDestroy,
   OnInit,
   inject,
+  signal,
+  Input,
 } from "@angular/core";
 import { CommonModule, Location } from "@angular/common";
-import { ActivatedRoute } from "@angular/router";
 import { HeroesAccessService } from "src/app/models/heroes/heroes-access.service";
-import { Subject, catchError, of, takeUntil } from "rxjs";
-import { FormsModule } from "@angular/forms";
+import { Subject, catchError, of, takeUntil, filter } from "rxjs";
+import { FormControl, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { Hero } from "src/app/models/heroes/heroes";
 
 @Component({
   selector: "app-hero-detail",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule],
   template: `
-    <section *ngIf="hero$ | async as hero">
+  <ng-container *ngIf="!error; else errorTmp">
+    <section *ngIf="hero(); else loadingTmp">
       <h2 class="text-2xl text-left text-[#444]">
-        {{ hero.name | uppercase }} Details
+        {{ hero()?.name | uppercase }} Details
       </h2>
-      <p><span>id: </span>{{ hero.id }}</p>
+      <p><span>id: </span>{{ hero()?.id }}</p>
       <p>
         <label class="font-bold text-[#435960]" for="hero-name">
           Hero name:
@@ -29,8 +31,8 @@ import { Hero } from "src/app/models/heroes/heroes";
         <input
           class="p-4 text-md text-[#333] border rounded"
           id="hero-name"
-          [(ngModel)]="hero.name"
           placeholder="Hero name"
+          [formControl]="nameControl"
         />
       </p>
       <button
@@ -43,32 +45,41 @@ import { Hero } from "src/app/models/heroes/heroes";
       <button
         class="mt-4 mr-2 p-4 rounded bg-[#eee] hover:bg-[#cfd8dc]"
         type="button"
-        (click)="onClickToSaveHero(hero)"
+        (click)="onClickToSaveHero()"
       >
         save
       </button>
     </section>
+    </ng-container>
+    <ng-template #loadingTmp>
+      loading...
+    </ng-template>
+    <ng-template #errorTmp>
+      error...
+    </ng-template>
   `,
   styles: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HeroDetailComponent implements OnInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
   private readonly location = inject(Location);
   private readonly heroesAccess = inject(HeroesAccessService);
   private readonly destroySubject = new Subject<boolean>();
-  private readonly heroSubject = new Subject<Hero | undefined>();
-  protected readonly hero$ = this.heroSubject.asObservable();
+
+  @Input("id") id!: string;
+
+  protected readonly hero = signal<Hero | undefined>(undefined);
+  protected readonly nameControl = new FormControl('')
+  protected error = false
 
   ngOnInit(): void {
-    const idStr = this.route.snapshot.paramMap.get("id");
-    if (idStr) this.getHero(idStr);
+    this.getHero();
+    this.listenName()
   }
 
-  private getHero(idStr: string): void {
-    const id = parseInt(idStr, 10);
+  private getHero(): void {
     this.heroesAccess
-      .findOne$(id)
+      .findOne$(this.id)
       .pipe(
         catchError((err) => {
           console.error(err);
@@ -76,17 +87,37 @@ export class HeroDetailComponent implements OnInit, OnDestroy {
         }),
         takeUntil(this.destroySubject)
       )
-      .subscribe((hero) => this.heroSubject.next(hero));
+      .subscribe((hero) => this.hero.set(hero));
   }
 
-  onClickToSaveHero(hero: Hero): void {
-    this.heroesAccess
-      .updateOne$(hero.id, hero)
-      .pipe(takeUntil(this.destroySubject))
-      .subscribe(() => this.onClickToGoBack());
+  private listenName(): void {
+    this.nameControl.valueChanges.pipe(
+      filter((value) => {
+        if (value === "") {
+          this.getHero();
+        }
+        return value !== undefined && value !== null && value !== "";
+      }),
+      takeUntil(this.destroySubject)
+    ).subscribe((name) => {
+      const hero = this.hero()
+      if(hero && name) this.hero.set({
+        ...hero,
+        name
+      })
+    })
   }
 
-  onClickToGoBack() {
+  protected onClickToSaveHero(): void {
+    const hero = this.hero();
+    if (hero)
+      this.heroesAccess
+        .updateOne$(hero.id, hero)
+        .pipe(takeUntil(this.destroySubject))
+        .subscribe(() => this.onClickToGoBack());
+  }
+
+  protected onClickToGoBack() {
     this.location.back();
   }
 
