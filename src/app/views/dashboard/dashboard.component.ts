@@ -87,9 +87,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         }),
         debounceTime(500),
         distinctUntilChanged(),
-        switchMap((queryName) => {
-          if (!queryName) return of([] as Hero[]);
-          return this.heroesAccess.findSomeHeroesByName$(queryName);
+        switchMap((name) => {
+          if (!name) return of([] as Hero[]);
+          return this.heroesAccess.findMany$({ name });
         }),
         catchError((err) => {
           console.error(err);
