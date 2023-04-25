@@ -1,4 +1,3 @@
-import { HttpParams } from "@angular/common/http";
 import { HttpClient, HttpHeaders } from "@angular/common/http";
 import { Injectable, inject } from "@angular/core";
 import { Observable, tap } from "rxjs";
@@ -6,7 +5,7 @@ import { Observable, tap } from "rxjs";
 @Injectable({
   providedIn: "root",
 })
-export class HttpAccessService<Entity, CreateDTO, PatchDTO, DeleteResult> {
+export abstract class HttpAccessService<Entity, CreateDTO, PatchDTO, DeleteResult> {
   protected apiUrl = "";
   protected readonly httpOptions = {
     headers: new HttpHeaders({ "Content-Type": "application/json" }),
